@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -10,13 +9,36 @@ import (
 	"github.com/google/uuid"
 )
 
-func main() {
-	var idFlag string
-	flag.StringVar(&idFlag, "id", "", "resume a chat session by id")
-	flag.StringVar(&idFlag, "i", "", "resume a chat session by id (shorthand)")
-	flag.Parse()
+// extractChatID pulls a -i/--id flag (as "-i VALUE" or "-i=VALUE", either
+// dash style) out of args, wherever it appears, and returns its value plus
+// the remaining arguments - which become the initial chat message. The
+// standard library's flag package only recognizes flags before the first
+// positional argument, which would silently swallow a trailing --id into
+// the message instead of resuming that session.
+func extractChatID(args []string) (chatID string, rest []string) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-i" || a == "--id":
+			if i+1 < len(args) {
+				chatID = args[i+1]
+				i++
+				continue
+			}
+		case strings.HasPrefix(a, "-i="):
+			chatID = strings.TrimPrefix(a, "-i=")
+			continue
+		case strings.HasPrefix(a, "--id="):
+			chatID = strings.TrimPrefix(a, "--id=")
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return chatID, rest
+}
 
-	chatID := idFlag
+func main() {
+	chatID, args := extractChatID(os.Args[1:])
 	if chatID == "" {
 		chatID = uuid.NewString()
 	}
@@ -44,7 +66,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	initialMessage := strings.Join(flag.Args(), " ")
+	initialMessage := strings.Join(args, " ")
 	if initialMessage != "" {
 		session.Messages = append(session.Messages, message{"you", initialMessage})
 	}
