@@ -62,6 +62,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "warning: could not load config:", err)
 	}
 	initClients(cfg)
+	cleanupOldSessions(cfg.SessionRetentionDays, chatID)
 
 	prov := providerClaude
 	switch {

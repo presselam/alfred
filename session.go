@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // sessionsDir returns the directory where chat session files are stored,
@@ -54,6 +55,36 @@ func loadSession(chatID string) (sessionData, error) {
 		return sessionData{}, err
 	}
 	return data, nil
+}
+
+// cleanupOldSessions removes session files under sessionsDir that haven't
+// been modified in more than retentionDays days, best-effort. keepChatID -
+// the session about to be used for this run - is never deleted, regardless
+// of its age. retentionDays <= 0 disables cleanup entirely (keep forever).
+func cleanupOldSessions(retentionDays int, keepChatID string) {
+	if retentionDays <= 0 {
+		return
+	}
+	dir, err := sessionsDir()
+	if err != nil {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	keepFile := filepath.Base(keepChatID) + ".gob"
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Name() == keepFile {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		os.Remove(filepath.Join(dir, entry.Name()))
+	}
 }
 
 // saveSession persists the chat session to disk in gob's binary encoding,

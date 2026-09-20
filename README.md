@@ -38,6 +38,12 @@ Chat history (including the chosen engine) is saved in Go's binary `gob` encodin
 
 A resumed session keeps using whichever engine it was started with, regardless of the config file. Omit `--id` to start a new session with a fresh id. Passing an `--id` that doesn't match any saved session is an error (exit status 1) rather than silently starting a new, empty chat under that id.
 
+By default session files are kept forever. Set `session_retention_days` in `~/.alfred/config.yaml` to automatically delete session files that haven't been touched in that many days, checked once on every startup:
+
+    session_retention_days: 30
+
+The session you're currently starting or resuming is never deleted by this, no matter how old it is.
+
 Any other command-line arguments are joined with spaces and sent as the first message, so you can jump straight into a chat from the shell. `--id`/`-i` can go anywhere on the line - before, after, or in the middle of the message:
 
     go run . what is the capital of France?
