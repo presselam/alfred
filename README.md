@@ -30,7 +30,7 @@ Chat history (including the chosen engine) is saved in Go's binary `gob` encodin
     go run . --id=<chat-id>
     go run . -i <chat-id>
 
-A resumed session keeps using whichever engine it was started with, regardless of the config file. Omit `--id` to start a new session with a fresh id.
+A resumed session keeps using whichever engine it was started with, regardless of the config file. Omit `--id` to start a new session with a fresh id. Passing an `--id` that doesn't match any saved session is an error (exit status 1) rather than silently starting a new, empty chat under that id.
 
 Any other command-line arguments are joined with spaces and sent as the first message, so you can jump straight into a chat from the shell. `--id`/`-i` can go anywhere on the line - before, after, or in the middle of the message:
 

@@ -39,12 +39,21 @@ func extractChatID(args []string) (chatID string, rest []string) {
 
 func main() {
 	chatID, args := extractChatID(os.Args[1:])
-	if chatID == "" {
+	explicitID := chatID != ""
+	if !explicitID {
 		chatID = uuid.NewString()
 	}
 
 	session, err := loadSession(chatID)
-	if err != nil {
+	switch {
+	case err == nil:
+		// loaded fine
+	case os.IsNotExist(err) && explicitID:
+		fmt.Fprintf(os.Stderr, "no chat session found for --id %q\n", chatID)
+		os.Exit(1)
+	case os.IsNotExist(err):
+		// brand-new, unused chat id - nothing to load yet
+	default:
 		fmt.Fprintln(os.Stderr, "warning: could not load session:", err)
 	}
 

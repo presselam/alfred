@@ -35,8 +35,10 @@ type sessionData struct {
 	Messages []message
 }
 
-// loadSession reads a previously saved session for chatID. A missing file
-// is not an error - it just means there's no history yet.
+// loadSession reads a previously saved session for chatID. If no session
+// file exists, it returns an error satisfying os.IsNotExist - callers
+// decide whether that's fine (a fresh, unused chat id) or fatal (an
+// explicitly requested --id that doesn't exist).
 func loadSession(chatID string) (sessionData, error) {
 	path, err := sessionPath(chatID)
 	if err != nil {
@@ -44,9 +46,6 @@ func loadSession(chatID string) (sessionData, error) {
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return sessionData{}, nil
-		}
 		return sessionData{}, err
 	}
 	defer f.Close()
