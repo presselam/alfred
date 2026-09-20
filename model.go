@@ -71,7 +71,23 @@ func newModel(chatID string, prov provider, history []message) model {
 	}
 }
 
-func (m model) Init() tea.Cmd { return textarea.Blink }
+// hasPendingReply reports whether the last message is an unanswered "you"
+// turn - e.g. an initial message passed on the command line, or a session
+// that was interrupted before the reply came back.
+func hasPendingReply(messages []message) bool {
+	return len(messages) > 0 && messages[len(messages)-1].Role == "you"
+}
+
+// Init starts the cursor blinking and, if the session was loaded (or
+// started via command-line arguments) with a trailing unanswered "you"
+// message, immediately sends it off for a reply.
+func (m model) Init() tea.Cmd {
+	cmds := []tea.Cmd{textarea.Blink}
+	if hasPendingReply(m.messages) {
+		cmds = append(cmds, fetchReply(m.messages, m.provider))
+	}
+	return tea.Batch(cmds...)
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd

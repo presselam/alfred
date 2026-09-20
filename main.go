@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/google/uuid"
@@ -43,7 +44,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	p := tea.NewProgram(newModel(chatID, prov, session.Messages), tea.WithAltScreen(), tea.WithMouseCellMotion())
+	initialMessage := strings.Join(flag.Args(), " ")
+	if initialMessage != "" {
+		session.Messages = append(session.Messages, message{"you", initialMessage})
+	}
+
+	m := newModel(chatID, prov, session.Messages)
+	if initialMessage != "" {
+		m.saveSession()
+	}
+
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
