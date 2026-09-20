@@ -78,15 +78,16 @@ func fetchReply(history []message, prov provider) tea.Cmd {
 	return fetchClaudeReply(history)
 }
 
-// fetchClaudeReply sends the conversation so far to Claude.
+// fetchClaudeReply sends the conversation so far to Claude. Local-only
+// "system" notices (e.g. from the :w save command) are never sent.
 func fetchClaudeReply(history []message) tea.Cmd {
-	msgs := make([]anthropic.MessageParam, len(history))
-	for i, msg := range history {
-		block := anthropic.NewTextBlock(msg.Text)
-		if msg.Role == "ai" {
-			msgs[i] = anthropic.NewAssistantMessage(block)
-		} else {
-			msgs[i] = anthropic.NewUserMessage(block)
+	var msgs []anthropic.MessageParam
+	for _, msg := range history {
+		switch msg.Role {
+		case "ai":
+			msgs = append(msgs, anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.Text)))
+		case "you":
+			msgs = append(msgs, anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Text)))
 		}
 	}
 
@@ -110,15 +111,16 @@ func fetchClaudeReply(history []message) tea.Cmd {
 	}
 }
 
-// fetchOpenAIReply sends the conversation so far to OpenAI.
+// fetchOpenAIReply sends the conversation so far to OpenAI. Local-only
+// "system" notices (e.g. from the :w save command) are never sent.
 func fetchOpenAIReply(history []message) tea.Cmd {
-	msgs := make([]openai.ChatCompletionMessageParamUnion, len(history)+1)
-	msgs[0] = openai.SystemMessage(codeFenceInstruction)
-	for i, msg := range history {
-		if msg.Role == "ai" {
-			msgs[i+1] = openai.AssistantMessage(msg.Text)
-		} else {
-			msgs[i+1] = openai.UserMessage(msg.Text)
+	msgs := []openai.ChatCompletionMessageParamUnion{openai.SystemMessage(codeFenceInstruction)}
+	for _, msg := range history {
+		switch msg.Role {
+		case "ai":
+			msgs = append(msgs, openai.AssistantMessage(msg.Text))
+		case "you":
+			msgs = append(msgs, openai.UserMessage(msg.Text))
 		}
 	}
 

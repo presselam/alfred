@@ -8,6 +8,10 @@ Bubble Tea TUI: UUID header, scrollable chat history with bordered, syntax-highl
 
 Keys: Enter = send, Alt+Enter / Ctrl+J = newline, PgUp/PgDn or mouse wheel = scroll, Ctrl+Y = copy chat id to clipboard, Esc / Ctrl+C / `:q` = quit.
 
+Type `:w <filename>` and press Enter to save the code block(s) from the last AI response to disk, in the current directory. A single code block is written to `<filename>` exactly; multiple blocks are numbered against it, e.g. `:w quick.pl` with two blocks writes `quick-0.pl` and `quick-1.pl`. A short status line (e.g. `saved quick.pl`) is appended to the chat - it's local only and never sent to the model.
+
+Any input starting with `:` is treated as a command, not a chat message. Forgetting the filename (`:w`), having no code blocks in the last response, or typing an unrecognized command (e.g. `:x`) pops up a dismissible error dialog - the rest of the chat stays visible behind it; press any key (other than Ctrl+C, which still quits) to close it. Anything that doesn't start with `:` is always sent as a normal chat message.
+
 Replies come from either Claude (`claude-opus-5`) or OpenAI (`gpt-5`). Both engines (and Azure OpenAI) authenticate with a single environment variable: `ALFRED_API_KEY`.
 
 Pick the default engine for new sessions in `~/.alfred/config.yaml` (defaults to `claude` if the file or field is absent). You can also point either engine at a custom host, e.g. a proxy or self-hosted gateway:

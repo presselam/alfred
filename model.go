@@ -27,6 +27,7 @@ var (
 	aiStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10"))
 	dimStyle     = lipgloss.NewStyle().Faint(true)
 	codeBoxStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240")).Padding(0, 1)
+	errorStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("196")).Padding(1, 3)
 )
 
 // message is one turn of chat history.
@@ -49,6 +50,7 @@ type model struct {
 	height   int
 	ready    bool
 	copied   bool
+	errorMsg string // non-empty shows a dismissible popup instead of the normal view
 }
 
 func newModel(chatID string, prov provider, history []message) model {
@@ -115,6 +117,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
+		if m.errorMsg != "" {
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+			m.errorMsg = "" // any other key dismisses the popup
+			return m, nil
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
@@ -135,8 +145,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if text == "" {
 				return m, nil
 			}
-			if text == ":q" {
-				return m, tea.Quit
+			if strings.HasPrefix(text, ":") {
+				m.input.Reset()
+				switch {
+				case text == ":q":
+					return m, tea.Quit
+				case text == ":w" || strings.HasPrefix(text, ":w "):
+					m.handleSaveCommand(strings.TrimSpace(strings.TrimPrefix(text, ":w")))
+				default:
+					m.errorMsg = "unknown command: " + text
+				}
+				m.relayout()
+				m.refreshChat()
+				m.saveSession()
+				return m, nil
 			}
 			m.messages = append(m.messages, message{"you", text})
 			m.input.Reset()
@@ -216,5 +238,13 @@ func (m model) View() string {
 	header := headerStyle.Width(m.width).MaxHeight(1).Render(headerText)
 	chat := boxStyle.Render(m.viewport.View())
 	input := boxStyle.Render(m.input.View())
-	return lipgloss.JoinVertical(lipgloss.Left, header, chat, input)
+	background := lipgloss.JoinVertical(lipgloss.Left, header, chat, input)
+
+	if m.errorMsg == "" {
+		return background
+	}
+	box := errorStyle.Render(m.errorMsg)
+	hint := dimStyle.Render("press any key to continue")
+	popup := lipgloss.JoinVertical(lipgloss.Center, box, hint)
+	return overlay(background, popup, m.width, m.height)
 }
