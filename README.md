@@ -1,4 +1,5 @@
-# chattui
+# alfred
+terminal ai assistant
 
 Bubble Tea TUI: UUID header, scrollable chat history, auto-growing (1-5 line) input.
 
