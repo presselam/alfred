@@ -6,7 +6,7 @@ Bubble Tea TUI: UUID header, scrollable chat history with bordered, syntax-highl
     go mod tidy
     go run .
 
-Keys: Enter = send, Alt+Enter / Ctrl+J = newline, PgUp/PgDn or mouse wheel = scroll, Ctrl+Y = copy chat id to clipboard, Esc / Ctrl+C / `:q` = quit.
+Keys: Enter = send, Alt+Enter / Ctrl+J = newline, Up/Down/PgUp/PgDn/Ctrl+U/Ctrl+D = scroll, Ctrl+Y = copy chat id to clipboard, Esc / Ctrl+C / `:q` = quit. Mouse mode is off, so normal click-drag text selection works in your terminal as usual - there's no scroll-wheel support as a result, but the keyboard scroll keys cover it.
 
 Type `:w <filename>` and press Enter to save the code block(s) from the last AI response to disk, in the current directory. A single code block is written to `<filename>` exactly; multiple blocks are numbered against it, e.g. `:w quick.pl` with two blocks writes `quick-0.pl` and `quick-1.pl`. A short status line (e.g. `saved quick.pl`) is appended to the chat - it's local only and never sent to the model.
 

@@ -145,11 +145,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshChat()
 		return m, cmd
 
-	case tea.MouseMsg:
-		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		return m, cmd
-
 	case tea.KeyMsg:
 		if m.errorMsg != "" {
 			if msg.String() == "ctrl+c" {
@@ -170,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Tick(copiedFlashDuration, func(time.Time) tea.Msg {
 				return copiedFlashExpiredMsg{}
 			})
-		case "pgup", "pgdown", "ctrl+u", "ctrl+d":
+		case "up", "down", "pgup", "pgdown", "ctrl+u", "ctrl+d":
 			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
