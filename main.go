@@ -62,6 +62,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "warning: could not load config:", err)
 	}
 	initClients(cfg)
+	cleanupOldSessions(cfg.SessionRetentionDays, chatID)
 
 	prov := providerClaude
 	switch {
@@ -80,12 +81,12 @@ func main() {
 		session.Messages = append(session.Messages, message{"you", initialMessage})
 	}
 
-	m := newModel(chatID, prov, session.Messages)
+	m := newModel(chatID, prov, cfg.ImageViewer, session.Messages)
 	if initialMessage != "" {
 		m.saveSession()
 	}
 
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)

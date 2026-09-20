@@ -6,11 +6,19 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// roleImageRequest tags an echoed ":image <prompt>" request. It's styled
+// like "system" (dim) in refreshChat, grouping it visually with the
+// progress spinner and save confirmation that follow it, and - like
+// "system" - is excluded from what gets sent to the chat API, since no
+// reply was ever generated for it.
+const roleImageRequest = "image-request"
 
 const copiedFlashDuration = 1500 * time.Millisecond
 
@@ -32,7 +40,7 @@ var (
 
 // message is one turn of chat history.
 type message struct {
-	Role string // "you" or "ai"
+	Role string // "you", "ai", "system" (local-only status), or roleImageRequest
 	Text string
 }
 
@@ -41,19 +49,22 @@ type aiReplyMsg string
 type copiedFlashExpiredMsg struct{}
 
 type model struct {
-	chatID   string
-	provider provider
-	messages []message
-	viewport viewport.Model
-	input    textarea.Model
-	width    int
-	height   int
-	ready    bool
-	copied   bool
-	errorMsg string // non-empty shows a dismissible popup instead of the normal view
+	chatID          string
+	provider        provider
+	imageViewer     string // shell command to open a generated image, from config.yaml
+	messages        []message
+	viewport        viewport.Model
+	input           textarea.Model
+	width           int
+	height          int
+	ready           bool
+	copied          bool
+	errorMsg        string // non-empty shows a dismissible popup instead of the normal view
+	spinner         spinner.Model
+	generatingImage bool // true while an :image request is in flight
 }
 
-func newModel(chatID string, prov provider, history []message) model {
+func newModel(chatID string, prov provider, imageViewer string, history []message) model {
 	ta := textarea.New()
 	ta.Placeholder = "Type a message... (Enter to send, Alt+Enter for newline)"
 	ta.Prompt = ""
@@ -65,11 +76,13 @@ func newModel(chatID string, prov provider, history []message) model {
 	ta.Focus()
 
 	return model{
-		chatID:   chatID,
-		provider: prov,
-		messages: history,
-		input:    ta,
-		viewport: viewport.New(0, 0),
+		chatID:      chatID,
+		provider:    prov,
+		imageViewer: imageViewer,
+		messages:    history,
+		input:       ta,
+		viewport:    viewport.New(0, 0),
+		spinner:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 }
 
@@ -111,9 +124,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.copied = false
 		return m, nil
 
-	case tea.MouseMsg:
+	case imageResultMsg:
+		m.generatingImage = false
+		if msg.Err != "" {
+			m.errorMsg = msg.Err
+			m.refreshChat()
+			return m, nil
+		}
+		m.messages = append(m.messages, message{"system", msg.Note})
+		m.refreshChat()
+		m.saveSession()
+		return m, nil
+
+	case spinner.TickMsg:
+		if !m.generatingImage {
+			return m, nil // generation finished (or never started) - stop ticking
+		}
 		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
+		m.spinner, cmd = m.spinner.Update(msg)
+		m.refreshChat()
 		return m, cmd
 
 	case tea.KeyMsg:
@@ -136,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Tick(copiedFlashDuration, func(time.Time) tea.Msg {
 				return copiedFlashExpiredMsg{}
 			})
-		case "pgup", "pgdown", "ctrl+u", "ctrl+d":
+		case "up", "down", "pgup", "pgdown", "ctrl+u", "ctrl+d":
 			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
@@ -147,18 +176,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if strings.HasPrefix(text, ":") {
 				m.input.Reset()
+				var cmd tea.Cmd
 				switch {
 				case text == ":q":
 					return m, tea.Quit
 				case text == ":w" || strings.HasPrefix(text, ":w "):
 					m.handleSaveCommand(strings.TrimSpace(strings.TrimPrefix(text, ":w")))
+				case text == ":image" || strings.HasPrefix(text, ":image "):
+					cmd = m.handleImageCommand(text, strings.TrimSpace(strings.TrimPrefix(text, ":image")))
 				default:
 					m.errorMsg = "unknown command: " + text
 				}
 				m.relayout()
 				m.refreshChat()
 				m.saveSession()
-				return m, nil
+				return m, cmd
 			}
 			m.messages = append(m.messages, message{"you", text})
 			m.input.Reset()
