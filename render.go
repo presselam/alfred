@@ -125,6 +125,18 @@ func overlay(bg, fg string, width, height int) string {
 	return strings.Join(out, "\n")
 }
 
+// styleForRole picks the display style for a message's role.
+func styleForRole(role string) lipgloss.Style {
+	switch role {
+	case "ai":
+		return aiStyle
+	case "system", roleImageRequest:
+		return dimStyle
+	default:
+		return youStyle
+	}
+}
+
 // refreshChat re-renders the transcript into the viewport and scrolls to end.
 func (m *model) refreshChat() {
 	wrap := lipgloss.NewStyle().Width(m.viewport.Width)
@@ -133,17 +145,17 @@ func (m *model) refreshChat() {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		style := youStyle
-		switch msg.Role {
-		case "ai":
-			style = aiStyle
-		case "system":
-			style = dimStyle
-		}
+		style := styleForRole(msg.Role)
 		b.WriteString(wrap.Render(renderMessageBody(msg.Text, style, m.viewport.Width)))
 	}
 	if len(m.messages) == 0 {
 		b.WriteString(dimStyle.Render("No messages yet."))
+	}
+	if m.generatingImage {
+		if len(m.messages) > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(dimStyle.Render(m.spinner.View() + "generating image..."))
 	}
 	m.viewport.SetContent(b.String())
 	m.viewport.GotoBottom()

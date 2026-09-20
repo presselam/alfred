@@ -80,7 +80,7 @@ func main() {
 		session.Messages = append(session.Messages, message{"you", initialMessage})
 	}
 
-	m := newModel(chatID, prov, session.Messages)
+	m := newModel(chatID, prov, cfg.ImageViewer, session.Messages)
 	if initialMessage != "" {
 		m.saveSession()
 	}
